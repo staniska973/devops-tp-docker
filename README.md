@@ -104,7 +104,7 @@ Les images Docker sont taguées automatiquement :
 
 ## 👨‍💻 Auteur
 
-**Stanislav** - [GitHub](https://github.com/staniska973)
+**Stanislas-Constantin Karim** - [GitHub](https://github.com/staniska973)
 
 ## 📝 Licence
 

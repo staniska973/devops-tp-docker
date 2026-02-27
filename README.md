@@ -1,33 +1,92 @@
-# TP DevOps - Déploiement Automatisé avec Docker
+# TP DevSecOps - Pipeline Docker Sécurisé
 
-[![Build and Push Docker Image](https://github.com/staniska973/devops-tp-docker/actions/workflows/docker-deploy.yml/badge.svg)](https://github.com/staniska973/devops-tp-docker/actions/workflows/docker-deploy.yml)
+[![Build and Scan](https://github.com/staniska973/devops-tp-docker/actions/workflows/docker-deploy.yml/badge.svg)](https://github.com/staniska973/devops-tp-docker/actions/workflows/docker-deploy.yml)
 
 ## 📋 Description
 
-Application web conteneurisée avec pipeline CI/CD automatisé utilisant Docker, Nginx et GitHub Actions.
+Application web conteneurisée avec pipeline CI/CD **sécurisé** incluant scan de vulnérabilités, analyse statique, et bonnes pratiques DevSecOps.
+
+## 🔐 Pipeline DevSecOps
+
+Ce projet implémente un pipeline CI/CD sécurisé avec :
+
+### Analyse de Sécurité
+- ✅ **CodeQL** - Analyse statique du code source (SAST)
+- ✅ **Hadolint** - Lint du Dockerfile (bonnes pratiques)
+- ✅ **Trivy** - Scan des vulnérabilités de l'image Docker
+- ✅ **Dependabot** - Mise à jour automatique des dépendances
+- ✅ **Secret Scanning** - Détection de secrets dans le code
+- ✅ **Security Gates** - Blocage si vulnérabilités CRITICAL/HIGH
+- ✅ **SBOM** - Software Bill of Materials généré automatiquement
+
+### Architecture de Sécurité
+
+```
+Code Push
+    |
+    v
+[Secret Scanning] --> Blocage si secret détecté
+    |
+    v
+[Security Analysis Job]
+    |
+    +-- Hadolint (lint Dockerfile)
+    |
+    v
+[Build Docker Image]
+    |
+    v
+[Security Scan Job]
+    |
+    +-- Trivy (scan vulnérabilités)
+    +-- Upload résultats → GitHub Security
+    +-- Security Gate (fail si CRITICAL/HIGH)
+    |
+    v
+[Push to GHCR] --> Si tous les scans passent
+    |
+    +-- Génération SBOM
+```
 
 ## 🚀 Technologies Utilisées
 
-- **Docker** : Conteneurisation de l'application
-- **Nginx Alpine** : Serveur web léger et performant
-- **GitHub Actions** : Pipeline CI/CD automatique
-- **GitHub Container Registry (GHCR)** : Hébergement des images Docker
-- **HTML/CSS/JavaScript** : Interface utilisateur
+- **Docker** : Conteneurisation avec image Alpine
+- **Nginx Alpine** : Serveur web léger (version spécifique 1.25.3)
+- **GitHub Actions** : Pipeline CI/CD automatisé
+- **Trivy** : Scanner de vulnérabilités
+- **Hadolint** : Linter Dockerfile
+- **CodeQL** : Analyse du code source
+- **GHCR** : GitHub Container Registry
+
+## 🛡️ Sécurité de l'Image
+
+### Améliorations TP2
+- ✅ **Utilisateur non-root** : Exécution avec `appuser` (UID 1000)
+- ✅ **Port non-privilégié** : 8080 au lieu de 80
+- ✅ **Version spécifique** : nginx:1.25.3-alpine (pas de `latest`)
+- ✅ **Headers de sécurité renforcés** : CSP, X-Frame-Options DENY, etc.
+- ✅ **Méthodes HTTP limitées** : GET, HEAD, POST uniquement
+- ✅ **Server tokens masqués** : Version Nginx cachée
+- ✅ **Health checks** : Vérification de santé du container
+- ✅ **Minimal packages** : Seulement ca-certificates installé
 
 ## 📁 Structure du Projet
 
 ```
 ├── .github/
-│   └── workflows/
-│       └── docker-deploy.yml    # Workflow CI/CD
+│   ├── workflows/
+│   │   └── docker-deploy.yml    # Pipeline CI/CD avec scans
+│   └── dependabot.yml           # Configuration Dependabot
 ├── src/
 │   ├── index.html              # Page principale
 │   ├── style.css               # Styles CSS
 │   └── app.js                  # Logique JavaScript
 ├── nginx/
-│   └── nginx.conf              # Configuration Nginx
-├── Dockerfile                   # Instructions Docker
+│   └── nginx.conf              # Config Nginx sécurisée (port 8080)
+├── Dockerfile                   # Dockerfile sécurisé (non-root)
 ├── .dockerignore               # Fichiers exclus du build
+├── .hadolint.yaml              # Configuration Hadolint
+├── package.json                # Dépendances npm (test Dependabot)
 └── README.md                   # Documentation
 ```
 
@@ -47,10 +106,10 @@ git clone https://github.com/staniska973/devops-tp-docker.git
 cd devops-tp-docker
 
 # Construire l'image Docker
-docker build -t devops-tp-docker .
+docker build -t devops-tp-docker:local .
 
-# Exécuter le container
-docker run -d -p 8080:80 --name devops-container devops-tp-docker
+# Exécuter le container (port 8080 car non-root)
+docker run -d -p 8080:8080 --name devops-container devops-tp-docker:local
 
 # Ouvrir dans le navigateur
 http://localhost:8080
@@ -59,64 +118,141 @@ http://localhost:8080
 ### Utiliser l'image depuis GHCR
 
 ```bash
-# Télécharger et exécuter l'image publiée
+# Télécharger et exécuter l'image publiée (sécurisée)
 docker pull ghcr.io/staniska973/devops-tp-docker:latest
-docker run -d -p 8080:80 ghcr.io/staniska973/devops-tp-docker:latest
+docker run -d -p 8080:8080 ghcr.io/staniska973/devops-tp-docker:latest
+```
+
+### Scanner l'image localement avec Trivy
+
+```bash
+# Installer Trivy (macOS)
+brew install trivy
+
+# Scanner l'image
+trivy image devops-tp-docker:local
+
+# Scanner avec seuil de sévérité
+trivy image --severity HIGH,CRITICAL --exit-code 1 devops-tp-docker:local
+
+# Générer un rapport JSON
+trivy image --format json --output report.json devops-tp-docker:local
 ```
 
 ## 🔄 Pipeline CI/CD
 
 Le workflow GitHub Actions se déclenche automatiquement lors de :
 
-- **Push** sur la branche `main` ou `develop`
+- **Push** sur la branche `main`
 - **Création de tag** (format `v*`)
 - **Pull Request** vers `main`
 
-### Actions automatiques :
+### Jobs du Pipeline
 
-1. Build de l'image Docker
-2. Test de l'image
-3. Push vers GitHub Container Registry
-4. Versioning automatique avec tags
+**1. security-analysis** (Analyse de sécurité)
+- Lint du Dockerfile avec Hadolint
+- Détection des mauvaises pratiques
+
+**2. build-and-scan** (Build et scan)
+- Build de l'image Docker
+- Scan avec Trivy (vulnérabilités OS + packages)
+- Upload des résultats dans GitHub Security
+- **Security Gate** : Fail si CRITICAL ou HIGH détectés
+
+**3. push-image** (Push si sécurité OK)
+- Push vers GitHub Container Registry
+- Génération du SBOM (Software Bill of Materials)
+- Tagging automatique
+
+### Actions automatiques
+
+✅ **Si scans PASS** : Image poussée vers GHCR  
+❌ **Si scans FAIL** : Pipeline bloqué, image non publiée
+
+## 📊 Consulter les Résultats de Sécurité
+
+1. **Code scanning alerts** : `Security` → `Code scanning`
+2. **Dependabot alerts** : `Security` → `Dependabot`
+3. **Secret scanning** : `Security` → `Secret scanning`
+4. **Workflow logs** : `Actions` → Détails des scans Trivy
 
 ## 📦 Versions
 
 Les images Docker sont taguées automatiquement :
 
-- `latest` : Dernière version de la branche main
+- `latest` : Dernière version de la branche main (si scans OK)
 - `v1.0.0` : Version sémantique (si tag Git créé)
 - `main-sha12345` : Version avec hash du commit
 
-## 📊 Fonctionnalités de l'Application
+## 📝 Métriques de Sécurité
 
-- ✅ Affichage des informations du container
-- ✅ Test de fonctionnalité en temps réel
-- ✅ Mise à jour automatique du timestamp
-- ✅ Interface responsive et moderne
-- ✅ Health check automatique
+**Indicateurs surveillés** :
+- Nombre de vulnérabilités par sévérité (CRITICAL, HIGH, MEDIUM, LOW)
+- Taille de l'image Docker
+- Âge de l'image de base
+- Temps de scan
+- MTTR (Mean Time To Remediate)
 
-## 🔐 Sécurité
+## 🔑 Bonnes Pratiques Implémentées
 
-- Image Alpine minimale (sécurité renforcée)
-- Headers de sécurité Nginx configurés
-- GZIP activé pour les performances
-- Health checks réguliers
+### Dockerfile
+- ✅ Image de base avec version spécifique
+- ✅ Utilisateur non-root
+- ✅ Instructions COPY avec --chown
+- ✅ Réduction des layers
+- ✅ Pas de secrets dans l'image
+
+### Pipeline
+- ✅ Scans à chaque commit
+- ✅ Security gates automatiques
+- ✅ SARIF upload pour GitHub Security
+- ✅ SBOM généré et archivé
+
+### Configuration Nginx
+- ✅ Headers de sécurité renforcés
+- ✅ Limitation des méthodes HTTP
+- ✅ Masquage de la version serveur
+- ✅ Content Security Policy (CSP)
 
 ## 👨‍💻 Auteur
 
 **Stanislas-Constantin Karim** - [GitHub](https://github.com/staniska973)
 
-## 📝 Licence
+## 📝 Travaux Pratiques
 
-Projet réalisé dans le cadre du TP DevSecOps - Mastère Cybersécurité & IA - EFREI
+- ✅ **TP1** : Déploiement automatisé avec Docker et GitHub Actions
+- ✅ **TP2** : Sécurisation du pipeline Docker CI/CD avec DevSecOps
+
+**Projet réalisé dans le cadre du Mastère Cybersécurité & IA - EFREI**
 
 ---
 
-## 🎯 Objectifs du TP Atteints
+## 🎯 Résultats TP2
 
-- ✅ Conteneurisation d'une application web avec Docker
-- ✅ Configuration Nginx dans un container
-- ✅ Pipeline CI/CD avec GitHub Actions
-- ✅ Publication automatique sur GHCR
-- ✅ Versioning automatique des images
-- ✅ Bonnes pratiques Docker et DevOps
+### Objectifs Atteints
+
+- ✅ Scanner des images Docker (Trivy intégré)
+- ✅ Intégrer scan dans le pipeline CI/CD
+- ✅ Configurer CodeQL (à activer manuellement)
+- ✅ Activer Dependabot (fichier de config créé)
+- ✅ Implémenter Security Gates (fail sur CRITICAL/HIGH)
+- ✅ Corriger vulnérabilités (Dockerfile sécurisé + non-root)
+- ✅ SBOM généré automatiquement
+
+### Améliorations par rapport au TP1
+
+| Aspect | TP1 | TP2 (Sécurisé) |
+|--------|-----|----------------|
+| Image de base | `nginx:alpine` | `nginx:1.25.3-alpine` |
+| Utilisateur | root | appuser (non-root) |
+| Port | 80 (privilégié) | 8080 (non-privilégié) |
+| Scan vulnérabilités | ❌ Non | ✅ Trivy |
+| Lint Dockerfile | ❌ Non | ✅ Hadolint |
+| Security Gates | ❌ Non | ✅ Oui (CRITICAL/HIGH) |
+| Headers sécurité | Basiques | Renforcés + CSP |
+| SBOM | ❌ Non | ✅ Oui |
+| Dependabot | ❌ Non | ✅ Oui |
+
+---
+
+**🔒 Security First - DevSecOps in Action**

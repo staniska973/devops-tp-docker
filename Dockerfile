@@ -1,5 +1,5 @@
 # Utiliser une version spécifique (pas latest) - Sécurité TP2
-FROM nginx:1.25.3-alpine
+FROM nginx:1.29.5-alpine
 
 # Métadonnées de l'image
 LABEL maintainer="TP DevSecOps"

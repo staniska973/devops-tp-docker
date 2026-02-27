@@ -1,0 +1,50 @@
+# Fichiers et répertoires à ignorer lors de la construction de l'image Docker
+
+# Système de contrôle de version
+.git
+.gitignore
+.gitattributes
+
+# GitHub
+.github
+.github/workflows
+
+# Documentation
+README.md
+*.md
+CHANGELOG.md
+LICENSE
+
+# IDE et éditeurs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+.env.local
+
+# Node.js (si applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Fichiers temporaires
+*.tmp
+*.log
+.cache
+
+# Dépôts
+.npm
+.yarn/cache
+
+# Fichiers de test et de couverture
+coverage/
+.pytest_cache
+*.test.js
+
+# Images et autres ressources non utilisées
+assets/unused/
+.drawings/
